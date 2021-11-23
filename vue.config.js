@@ -13,7 +13,7 @@ process.env.VUE_APP_BUILD_TIME = require('dayjs')().format('YYYY-M-D HH:mm:ss')
 const proxyUrl = 'http://192.168.0.16'
 const port = 9527 // dev port
 // 项目地址 【实际打包需要替换】
-const projectPath = 'D:\\ideaspace\\thursdata\\doctor-quchuang-web\\doctor-quchuang-admin'
+const projectPath = 'D:\\ideaspace\\imicroservice\\jcloud-web\\jcloud-admin'
 
 // template path
 const indexPath = projectPath + '\\src\\main\\resources\\templates\\root\\admin\\index.html'
