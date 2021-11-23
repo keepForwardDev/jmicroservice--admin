@@ -35,6 +35,7 @@
                 <el-form-item prop="username">
                   <el-input
                     type="text"
+                    @keyup.enter.native="submit"
                     v-model="formLogin.username"
                     placeholder="用户名">
                     <i slot="prepend" class="fa fa-user-circle-o"></i>
@@ -42,6 +43,7 @@
                 </el-form-item>
                 <el-form-item prop="password">
                   <el-input
+                    @keyup.enter.native="submit"
                     type="password"
                     v-model="formLogin.password"
                     placeholder="密码">
@@ -51,14 +53,16 @@
                 <el-form-item prop="code">
                   <el-input
                     type="text"
+                    @keyup.enter.native="submit"
                     v-model="formLogin.code"
                     placeholder="验证码">
                     <template slot="append">
-                      <img ref="loginCode" class="login-code" :src="codeSrc">
+                      <img ref="loginCode" class="login-code" :src="codeSrc" @click="changeSrc">
                     </template>
                   </el-input>
                 </el-form-item>
                 <el-button
+                  :loading="loginLoading"
                   size="default"
                   @click="submit"
                   type="primary"
@@ -130,15 +134,18 @@ export default {
             trigger: 'blur'
           }
         ]
-      }
+      },
+      timeStamp: '',
+      loginLoading: false
     }
   },
   computed: {
     codeSrc() {
-      return '/auth/loginCode?requestSn=' + this.formLogin.requestSn
+      return '/auth/loginCode?requestSn=' + this.formLogin.requestSn + '&t=' + this.timeStamp
     }
   },
   mounted () {
+    this.timeStamp = new Date().getTime()
     this.formLogin.requestSn = this.getUuid()
     this.timeInterval = setInterval(() => {
       this.refreshTime()
@@ -161,6 +168,7 @@ export default {
     submit () {
       this.$refs.loginForm.validate((valid) => {
         if (valid) {
+          this.loginLoading = true
           this.$post('/auth/oauth/token', this.formLogin, {
             Authorization: 'Basic amNsb3VkLWFkbWluOmpjbG91ZC1hZG1pbg=='
           }).then(res => {
@@ -171,9 +179,12 @@ export default {
                   this.$router.replace(this.$route.query.redirect || '/')
                 })
             } else {
-              this.$refs.loginCode.src = '/auth/loginCode?requestSn=' + this.formLogin.requestSn + '&t=' + Math.random()
+              this.loginLoading = false
+              this.changeSrc()
               this.$message.error(res.msg)
             }
+          }).catch(error => {
+            this.loginLoading = false
           })
         } else {
           // 登录表单校验失败
@@ -183,6 +194,9 @@ export default {
     },
     getUuid() {
       return uuidv4().replace(/-/g, '')
+    },
+    changeSrc () {
+      this.timeStamp = new Date().getTime()
     }
   }
 }
