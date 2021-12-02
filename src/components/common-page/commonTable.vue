@@ -1,14 +1,13 @@
 <template>
   <div class="table-area">
     <el-table
-      show-overflow-tooltip
       :data="tableData"
       v-loading="tableLoading"
       @sort-change="changeSort"
       @selection-change="changeSelectList"
       style="width: 100%">
       <el-table-column v-if="isShowSelect" type="selection" width="55" fixed align="center" />
-      <el-table-column v-for="(item, key) in tableHeader" :key="key" min-height="46" :prop="item.prop" :label="item.label" :fixed="item.fixed || false" :sortable="item.sortable||false" :size="item.size || 100" :align="item.alignType||'center'">
+      <el-table-column v-for="(item, key) in tableHeader" show-overflow-tooltip :key="key" min-height="46" :prop="item.prop" :label="item.label" :fixed="item.fixed || false" :sortable="item.sortable||false" :size="item.size || 100" :align="item.alignType||'center'">
         <template slot-scope=" { row }">
           <div v-if="item.formatter">
             <div v-if="item.html" v-html="item.formatter(row[item.prop])" />
