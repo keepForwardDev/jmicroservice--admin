@@ -2,11 +2,11 @@
   <d2-container>
     <div class="search-area">
       <el-form :inline="true" :model="search">
-        <el-form-item label="日志内容">
+        <el-form-item label="内容" @keyup.enter.native="getList(true)">
           <el-input clearable size="mini" v-model="search.message" placeholder="请输入" />
         </el-form-item>
-        <el-form-item label="日志级别">
-          <el-select v-model="search.level">
+        <el-form-item label="级别">
+          <el-select v-model="search.level" placeholder="请选择" @change="getList(true)" size="mini" clearable>
             <el-option value="ERROR">ERROR</el-option>
             <el-option value="WARN">WARN</el-option>
             <el-option value="INFO">INFO</el-option>
@@ -15,13 +15,17 @@
           </el-select>
         </el-form-item>
         <el-form-item label="所属项目">
-          <el-input clearable size="mini" v-model="search.projectName" placeholder="请输入" />
+          <el-select v-model="search.projectName" placeholder="请选择" @change="getList(true)" size="mini">
+            <el-option v-for="(item, index) in projectNamesList" :value="item.label" :key="index">{{item.label}}</el-option>
+          </el-select>
         </el-form-item>
         <el-form-item label="服务器地址">
-          <el-input clearable size="mini" v-model="search.sourceFrom" placeholder="请输入" />
+          <el-select v-model="search.sourceFrom" placeholder="请选择" @change="getList(true)" size="mini" clearable>
+            <el-option v-for="(item, index) in sourceFromList" :value="item.label" :key="index">{{item.label}}</el-option>
+          </el-select>
         </el-form-item>
         <el-form-item label="class">
-          <el-input clearable size="mini" v-model="search.clazz" placeholder="请输入" />
+          <el-input clearable size="mini" v-model="search.clazz" placeholder="请输入" @keyup.enter.native="getList(true)"/>
         </el-form-item>
         <el-form-item label="表格显示">
           <el-switch
@@ -30,8 +34,13 @@
             inactive-color="#ff4949">
           </el-switch>
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" size="mini" @click="getList">查询</el-button>
+        <el-form-item label="自动刷新">
+          <el-switch
+            v-model="search.autoRefresh"
+            @change="autoRefresh"
+            active-color="#13ce66"
+            inactive-color="#ff4949">
+          </el-switch>
         </el-form-item>
       </el-form>
     </div>
@@ -48,11 +57,9 @@
                        @current-change="handleCurrentChange"/>
       </div>
     </div>
-    <div v-if="!search.showTable" style="width: 100%">
-      <el-pagination :current-page="pager.currentPage" :page-sizes="pageSizes" :page-size="pager.pageSize"
-                     :layout="pagerSetting" :total="pager.totalCount" @size-change="handlePageSizeChange"
-                     @current-change="handleCurrentChange"/>
-      <pre class="d2-highlight hljs" v-html="highlightContent"></pre>
+    <div v-if="!search.showTable" v-loading="infiniteLoading">
+      <pre class="d2-highlight hljs"  v-html="highlightContent"   v-infinite-scroll="loadMore" :infinite-scroll-disabled="infiniteDisabled"></pre>
+      <el-backtop target=".d2-highlight" :right="100" :bottom="100" ref="backtop">UP</el-backtop>
     </div>
   </d2-container>
 </template>
@@ -125,7 +132,10 @@ export default {
         label: '日志来源'
       }], // 表头配置
       search: {
-        showTable: false
+        id: '', // 游标id
+        showTable: false,
+        autoRefresh: false,
+        projectName: 'jcloud-admin'
       },
       formSettingInfo: [], // 表单配置
       formData: {}, // 表单数据
@@ -134,9 +144,14 @@ export default {
         totalCount: 0,
         pageCount: 1,
         pageSize: 15,
-        currentPage: 1
+        currentPage: 0
       },
       highlightContent: '',
+      infiniteDisabled: false,
+      infiniteLoading: false,
+      intervalPid: '',
+      projectNamesList: [],
+      sourceFromList: [],
       pageSizes: [15, 20, 40, 60, 100],
       pagerSetting: 'total, sizes, prev, pager, next, jumper',
       tableData: [], // 表格数据
@@ -150,13 +165,15 @@ export default {
   watch: {
     'search.showTable': {
       handler (val, oldVal) {
-        this.getList(true)
+        if (val !== oldVal) {
+          this.getList(true)
+        }
       },
       deep: true
     }
   },
   created() {
-    this.getList()
+    this.getEnum()
   },
   methods: {
     /**
@@ -166,7 +183,10 @@ export default {
     getList(flag) { // 列表请求
       this.tableLoading = true
       if (flag) {
+        this.infiniteDisabled = true
         this.pager.currentPage = 1
+        this.search.id = ''
+        this.highlightContent = ''
       }
       const params = Object.assign({}, this.search, {
         pageSize: this.pager.pageSize,
@@ -178,16 +198,31 @@ export default {
           if (this.search.showTable) {
             this.tableData = res.data.list
           } else {
-            this.highlightContent = highlight.highlightAuto(res.reserveData, [
-              'java',
-              'html',
-              'javascript',
-              'json',
-              'css',
-              'scss',
-              'less'
-            ]).value
+            if (res.reserveData.value) {
+              this.$message.warning('向下浏览已失效，重回第一页开始浏览')
+              this.highlightContent = ''
+              this.$refs.backtop.$el.click()
+            }
+            if (res.reserveData.label) {
+              this.highlightContent = this.highlightContent + highlight.highlightAuto(res.reserveData.label, [
+                'java',
+                'html',
+                'javascript',
+                'json',
+                'css',
+                'scss',
+                'less'
+              ]).value
+            } else {
+              this.highlightContent = this.highlightContent + "<span style='color: red'>已无更多内容</span>"
+              this.infiniteDisabled = true
+            }
           }
+          if (flag) {
+            this.infiniteDisabled = false
+          }
+          this.infiniteLoading = false
+          this.search.id = res.reserveData.name
           this.pager.totalCount = res.data.totalCount
           this.pager.pageCount = res.data.pageCount
           this.pager.pageSize = res.data.pageSize
@@ -224,6 +259,45 @@ export default {
     handlePageSizeChange(val) {
       this.pager.pageSize = val
       this.getList(true)
+    },
+    getEnum() {
+      this.$get('/admin/appLog/getEnum').then(res => {
+        if (res.code === 1) {
+          this.projectNamesList = res.data.projectName
+          this.sourceFromList = res.data.sourceFrom
+        }
+      })
+    },
+    loadMore() {
+      this.infiniteLoading = true
+      this.pager.currentPage = this.pager.currentPage + 1
+      this.getList()
+    },
+    refreshData() {
+      this.$get('/admin/appLog/autoRefresh?totalCount=' + this.pager.totalCount).then(res => {
+        if (res.reserveData && res.reserveData.label) {
+          this.highlightContent = highlight.highlightAuto(res.reserveData.label, [
+            'java',
+            'html',
+            'javascript',
+            'json',
+            'css',
+            'scss',
+            'less'
+          ]).value + this.highlightContent
+          this.pager.totalCount = res.data.totalCount
+        }
+      })
+    },
+    autoRefresh() {
+      if (this.search.autoRefresh) {
+        this.infiniteDisabled = true
+        this.intervalPid = setInterval(() => {
+          this.refreshData()
+        }, 2000)
+      } else {
+        clearInterval(this.intervalPid)
+      }
     }
   }
 }
