@@ -275,7 +275,10 @@ export default {
       this.getList()
     },
     refreshData() {
-      this.$get('/admin/appLog/autoRefresh?totalCount=' + this.pager.totalCount).then(res => {
+      this.$get('/admin/appLog/autoRefresh', {
+        totalCount: this.pager.totalCount,
+        projectName: this.search.projectName
+      }).then(res => {
         if (res.reserveData && res.reserveData.label && res.data.totalCount > this.pager.totalCount) {
           this.highlightContent = highlight.highlightAuto(res.reserveData.label, [
             'java',
