@@ -3,10 +3,10 @@
     <div class="search-area">
       <el-form :inline="true" :model="search">
         <el-form-item label="内容" @keyup.enter.native="getList(true)">
-          <el-input clearable size="mini" v-model="search.message" placeholder="请输入" />
+          <el-input clearable size="mini" v-model="search.message" placeholder="请输入" :disabled="searchDisabled"/>
         </el-form-item>
         <el-form-item label="级别">
-          <el-select v-model="search.level" placeholder="请选择" @change="getList(true)" size="mini" clearable>
+          <el-select v-model="search.level" placeholder="请选择" @change="getList(true)" size="mini" clearable :disabled="searchDisabled">
             <el-option value="ERROR">ERROR</el-option>
             <el-option value="WARN">WARN</el-option>
             <el-option value="INFO">INFO</el-option>
@@ -15,20 +15,21 @@
           </el-select>
         </el-form-item>
         <el-form-item label="所属项目">
-          <el-select v-model="search.projectName" placeholder="请选择" @change="getList(true)" size="mini">
+          <el-select v-model="search.projectName" placeholder="请选择" @change="getList(true)" size="mini" :disabled="searchDisabled">
             <el-option v-for="(item, index) in projectNamesList" :value="item.label" :key="index">{{item.label}}</el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="服务器地址">
-          <el-select v-model="search.sourceFrom" placeholder="请选择" @change="getList(true)" size="mini" clearable>
+          <el-select v-model="search.sourceFrom" placeholder="请选择" @change="getList(true)" size="mini" clearable :disabled="searchDisabled">
             <el-option v-for="(item, index) in sourceFromList" :value="item.label" :key="index">{{item.label}}</el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="class">
-          <el-input clearable size="mini" v-model="search.clazz" placeholder="请输入" @keyup.enter.native="getList(true)"/>
+          <el-input clearable size="mini" v-model="search.clazz" placeholder="请输入" @keyup.enter.native="getList(true)" :disabled="searchDisabled"/>
         </el-form-item>
         <el-form-item label="表格显示">
           <el-switch
+            :disabled="searchDisabled"
             v-model="search.showTable"
             active-color="#13ce66"
             inactive-color="#ff4949">
@@ -41,6 +42,7 @@
             active-color="#13ce66"
             inactive-color="#ff4949">
           </el-switch>
+          <i v-if="search.autoRefresh" class="fa fa-refresh fa-spin fa-fw" style="color: #13ce66"></i>
         </el-form-item>
       </el-form>
     </div>
@@ -143,15 +145,17 @@ export default {
       pager: { // 分页插件配置
         totalCount: 0,
         pageCount: 1,
-        pageSize: 15,
+        pageSize: 100,
         currentPage: 0
       },
       highlightContent: '',
       infiniteDisabled: false,
       infiniteLoading: false,
+      searchDisabled: false,
       intervalPid: '',
       projectNamesList: [],
       sourceFromList: [],
+      lastTotalCount: 0, // 启动自动刷新最后一次分页数
       pageSizes: [15, 20, 40, 60, 100],
       pagerSetting: 'total, sizes, prev, pager, next, jumper',
       tableData: [], // 表格数据
@@ -183,7 +187,6 @@ export default {
     getList(flag) { // 列表请求
       this.tableLoading = true
       if (flag) {
-        this.infiniteDisabled = true
         this.pager.currentPage = 1
         this.search.id = ''
         this.highlightContent = ''
@@ -200,8 +203,8 @@ export default {
           } else {
             if (res.reserveData.value) {
               this.$message.warning('向下浏览已失效，重回第一页开始浏览')
-              this.highlightContent = ''
-              this.$refs.backtop.$el.click()
+              this.getList(true)
+              return
             }
             if (res.reserveData.label) {
               this.highlightContent = this.highlightContent + highlight.highlightAuto(res.reserveData.label, [
@@ -213,13 +216,11 @@ export default {
                 'scss',
                 'less'
               ]).value
+              this.infiniteDisabled = false
             } else {
               this.highlightContent = this.highlightContent + "<span style='color: red'>已无更多内容</span>"
               this.infiniteDisabled = true
             }
-          }
-          if (flag) {
-            this.infiniteDisabled = false
           }
           this.infiniteLoading = false
           this.search.id = res.reserveData.name
@@ -275,7 +276,7 @@ export default {
     },
     refreshData() {
       this.$get('/admin/appLog/autoRefresh?totalCount=' + this.pager.totalCount).then(res => {
-        if (res.reserveData && res.reserveData.label) {
+        if (res.reserveData && res.reserveData.label && res.data.totalCount > this.pager.totalCount) {
           this.highlightContent = highlight.highlightAuto(res.reserveData.label, [
             'java',
             'html',
@@ -291,11 +292,13 @@ export default {
     },
     autoRefresh() {
       if (this.search.autoRefresh) {
+        this.searchDisabled = true
         this.infiniteDisabled = true
         this.intervalPid = setInterval(() => {
           this.refreshData()
         }, 2000)
       } else {
+        this.searchDisabled = false
         clearInterval(this.intervalPid)
       }
     }
