@@ -35,7 +35,7 @@
             inactive-color="#ff4949">
           </el-switch>
         </el-form-item>
-        <el-form-item label="自动刷新">
+        <el-form-item label="自动刷新" v-if="!search.showTable">
           <el-switch
             v-model="search.autoRefresh"
             @change="autoRefresh"
@@ -137,7 +137,7 @@ export default {
         id: '', // 游标id
         showTable: false,
         autoRefresh: false,
-        projectName: 'jcloud-admin'
+        projectName: 'quchuang-admin'
       },
       formSettingInfo: [], // 表单配置
       formData: {}, // 表单数据
@@ -171,6 +171,9 @@ export default {
       handler (val, oldVal) {
         if (val !== oldVal) {
           this.getList(true)
+        }
+        if (val && this.intervalPid) {
+          clearInterval(this.intervalPid)
         }
       },
       deep: true
@@ -303,6 +306,7 @@ export default {
       } else {
         this.searchDisabled = false
         clearInterval(this.intervalPid)
+        this.intervalPid = ''
       }
     }
   }
