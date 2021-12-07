@@ -137,7 +137,7 @@ export default {
         id: '', // 游标id
         showTable: false,
         autoRefresh: false,
-        projectName: 'quchuang-admin'
+        projectName: 'jcloud-admin'
       },
       formSettingInfo: [], // 表单配置
       formData: {}, // 表单数据
