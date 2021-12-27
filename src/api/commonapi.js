@@ -21,3 +21,10 @@ export function getDictionaryTreeByKey (nameKey) {
 export async function uploadFile (params) {
   return request.postJson('/common/upload/singleFile', params)
 }
+
+
+export async function getDictionaryTree (key, lazy) {
+  return request.get('/dic/getTree/' + key, {
+    lazy: lazy ? 1 : 0
+  })
+}

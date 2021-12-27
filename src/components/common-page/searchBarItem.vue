@@ -5,7 +5,7 @@
     </el-select>
     <el-date-picker size="mini" v-if="isShowDate" v-model="searchData[searchInfo.key]" :type="datePickerType" :placeholder="activePlaceholder" :start-placeholder='datePickerStartPlaceHolder' :end-placeholder='datePickerEndPlaceHolder' :range-separator="datePickerSplit" :value-format="datePickerFormat" clearable />
     <el-input clearable size="mini" v-if="isShowInput" v-model="searchData[searchInfo.key]" :placeholder="activePlaceholder" />
-    <el-cascader size="mini" v-if="isShowCascader" v-model="searchData[searchInfo.key]" :options="optionList" :props="{ checkStrictly: true, value:cascaderDefaultValue }" clearable />
+    <el-cascader size="mini" v-if="isShowCascader" v-model="searchData[searchInfo.key]" :options="optionList" :props="cascaderProps" clearable @change="handleCasChange"/>
   </el-form-item>
 </template>
 <script>
@@ -70,7 +70,10 @@ export default {
       return this.searchInfo.dateFormat || 'yyyy-MM-dd'
     },
     cascaderDefaultValue () {
-      return this.searchInfo.defaultValue || 'value'
+      return this.searchInfo.defaultValue || 'id'
+    },
+    cascaderProps () {
+      return this.searchInfo.props || { checkStrictly: true, value: this.cascaderDefaultValue }
     }
   },
   mounted () {
@@ -83,20 +86,27 @@ export default {
       })
       if (!commonOption) {
         if (this.searchInfo.optionKey) {
-          const res = await commonApi.getDictionaryListByKey(this.searchInfo.optionKey)
-          this.optionList = res.data.map(item => {
-            return {
-              ...item,
-              value: item.value || item.id,
-              label: item.label || item.name
-            }
-          })
-        } else if (this.searchInfo.treeKey) {
-          const res = await commonApi.getDictionaryTreeByKey(this.searchInfo.optionKey)
-          this.optionList = res.data
+          if (this.isShowSelect) {
+            const res = await commonApi.getDictionaryListByKey(this.searchInfo.optionKey)
+            this.optionList = res.data.map(item => {
+              return {
+                ...item,
+                value: item.value || item.id,
+                label: item.label || item.name
+              }
+            })
+          } else if (this.isShowCascader) {
+            const res = await commonApi.getDictionaryTree(this.searchInfo.optionKey, this.searchInfo.lazy)
+            this.optionList = res.data
+          }
         }
       } else {
         this.optionList = commonOption[1]
+      }
+    },
+    handleCasChange (value) {
+      if (this.searchInfo.formatter) {
+        this.searchInfo.formatter(value)
       }
     }
   }
